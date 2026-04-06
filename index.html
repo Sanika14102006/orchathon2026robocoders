@@ -1,157 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QuantSolve Dashboard</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
-<style>
-  body { font-family: 'Inter', sans-serif; }
-  .card { transition: transform 0.3s, box-shadow 0.3s; }
-  .card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 15px 25px rgba(0,0,0,0.3); }
-  .solution-row { opacity: 0; transform: translateY(20px); }
-  .square-input {
-    width: 60px;
-    height: 60px;
-    border: none;
-    outline: none;
-    text-align: center;
-    font-weight: bold;
-    font-size: 18px;
-    border-radius: 12px;
-    color: white;
-    background: linear-gradient(135deg, #f093fb, #f5576c);
-    transition: transform 0.3s, box-shadow 0.3s, background 0.5s;
-  }
-  .square-input:focus {
-    transform: scale(1.15);
-    box-shadow: 0 8px 20px rgba(255,255,255,0.6);
-    background: linear-gradient(135deg, #4facfe, #00f2fe);
-  }
-  .engine-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(90deg, #ff6ec4, #7873f5, #4ade80);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .engine-tagline {
-    font-size: 1.2rem;
-    font-weight: 500;
-    color: white;
-    opacity: 0.85;
-  }
-</style>
+    <link rel="stylesheet" href="style.css">
+    <title>Quantum Algebraic Engine</title>
 </head>
-<body class="bg-gradient-to-r from-indigo-600 to-purple-700 min-h-screen p-6 text-white">
+<body>
+    <div class="terminal-container">
+        <header>
+            <h1>ALGEBRAIC ENGINE v1.0</h1>
+            <div id="status">STATUS: ONLINE</div>
+        </header>
 
-<!-- Header -->
-<div class="mb-8 text-center">
-  <h1 class="engine-title drop-shadow-lg">QuantSolve</h1>
-  <p class="engine-tagline mt-2">The Algebraic Parser & Equation Engine</p>
-</div>
+        <section class="input-area">
+            <input type="text" id="formula" placeholder="Enter Polynomial (e.g., 2x + 3y)">
+            <input type="number" id="target" placeholder="Target Value">
+            <button onclick="solve()">EXECUTE SOLVER</button>
+        </section>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <!-- Equation Input Card -->
-  <div class="card p-6 rounded-xl shadow-xl bg-gradient-to-br from-indigo-500 to-purple-500/80 backdrop-blur-md">
-    <h2 class="text-2xl font-semibold mb-4">Enter Equation</h2>
-    <input type="text" id="equation" placeholder="e.g. 2x+3y+z=12"
-           class="w-full p-3 rounded border-none text-black font-semibold mb-4">
-    <div id="limits-container" class="mb-4 flex gap-2 flex-wrap"></div>
-    <div class="flex gap-2">
-      <button onclick="addLimits()" class="bg-white/30 hover:bg-white/50 text-white font-semibold px-4 py-2 rounded">Set Limits</button>
-      <button onclick="solveEquation()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded font-semibold">Solve</button>
+        <div class="main-content">
+            <aside id="limits-panel">
+                <h3>MARKET LIMITS</h3>
+                <div id="dynamic-vars"></div>
+            </aside>
+
+            <main>
+                <h3>WINNING COMBINATIONS</h3>
+                <table id="results-table">
+                    <thead><tr id="table-header"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </main>
+        </div>
     </div>
-  </div>
-
-  <!-- Solutions Table Card -->
-  <div class="card p-6 rounded-xl shadow-xl bg-gradient-to-br from-green-400/70 to-blue-500/70 backdrop-blur-md">
-    <h2 class="text-2xl font-semibold mb-4">Solutions</h2>
-    <table class="w-full table-auto border-collapse">
-      <thead>
-        <tr class="bg-white/30 text-white">
-          <th class="border px-2 py-1">Variable</th>
-          <th class="border px-2 py-1">Value</th>
-        </tr>
-      </thead>
-      <tbody id="solutions-body"></tbody>
-    </table>
-  </div>
-</div>
-
-<script>
-let limits = {};
-
-function addLimits() {
-  const eq = document.getElementById("equation").value;
-  const vars = [...new Set(eq.match(/[a-zA-Z]/g))];
-  const container = document.getElementById("limits-container");
-  container.innerHTML = '';
-  limits = {};
-  vars.forEach(v => {
-    const div = document.createElement("div");
-    div.classList.add("flex", "flex-col", "items-center");
-    div.innerHTML = `
-      <label class="text-white font-semibold">${v} Min</label>
-      <input type="number" id="${v}-min" value="0" class="square-input mb-2">
-      <label class="text-white font-semibold">${v} Max</label>
-      <input type="number" id="${v}-max" value="10" class="square-input">
-    `;
-    container.appendChild(div);
-    limits[v] = [0,10];
-  });
-}
-
-function solveEquation() {
-  const eq = document.getElementById("equation").value;
-  for (let v in limits) {
-    limits[v] = [
-      parseInt(document.getElementById(`${v}-min`).value),
-      parseInt(document.getElementById(`${v}-max`).value)
-    ];
-  }
-
-  fetch('/solve', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ equation: eq, limits: limits })
-  })
-  .then(res => res.json())
-  .then(data => {
-    const tbody = document.getElementById("solutions-body");
-    tbody.innerHTML = '';
-    if (typeof data === 'string') {
-      tbody.innerHTML = `<tr class="solution-row"><td colspan="2">${data}</td></tr>`;
-    } else {
-      data.forEach(sol => {
-        for (let key in sol) {
-          const row = document.createElement("tr");
-          row.classList.add("solution-row");
-          row.innerHTML = `<td class="border px-2 py-1">${key}</td><td class="border px-2 py-1">${sol[key]}</td>`;
-          tbody.appendChild(row);
-        }
-      });
-    }
-
-    // Animate rows using GSAP
-    gsap.to(".solution-row", {
-      opacity: 1,
-      y: 0,
-      stagger: 0.1,
-      duration: 0.5,
-      ease: "power3.out"
-    });
-  });
-}
-
-// Animate header tagline
-gsap.from(".engine-tagline", {
-  y: -20,
-  opacity: 0,
-  duration: 1.2,
-  ease: "power2.out"
-});
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
